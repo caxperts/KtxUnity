@@ -296,7 +296,7 @@ namespace KtxUnity {
                 texture.LoadRawTextureData((IntPtr)data,(int)length);
                 Profiler.EndSample();
             }
-            texture.Apply(false,true);
+            texture.Apply(false,false);
             Profiler.EndSample();
             return texture;
         }
