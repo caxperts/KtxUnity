@@ -16,6 +16,8 @@
 #define LOCAL_LOADING
 #endif
 
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -99,7 +101,7 @@ namespace KtxUnity {
         /// <returns>A <see cref="TextureResult"/> that contains an
         /// <see cref="ErrorCode"/>, the resulting texture and its orientation.
         /// </returns>
-        public async Task<TextureResult> LoadFromBytes(
+        public IEnumerable<TextureResult> LoadFromBytes(
             NativeSlice<byte> data,
             bool linear = false,
             uint layer = 0,
@@ -111,10 +113,16 @@ namespace KtxUnity {
             var result = new TextureResult {
                 errorCode = Open(data)
             };
-            if (result.errorCode != ErrorCode.Success) return result;
-            result = await LoadTexture2D(linear,layer,faceSlice,mipLevel,mipChain);
+            if (result.errorCode != ErrorCode.Success)
+            {
+                yield return result;
+                yield break;
+            }
+            foreach (var textureResult in LoadTexture2D(linear, layer, faceSlice, mipLevel, mipChain))
+            {
+                yield return textureResult;
+            }
             Dispose();
-            return result;
         }
 
         /// <summary>
@@ -170,7 +178,7 @@ namespace KtxUnity {
         /// <returns>A <see cref="TextureResult"/> that contains an
         /// <see cref="ErrorCode"/>, the resulting texture and its orientation.
         /// </returns>
-        public abstract Task<TextureResult> LoadTexture2D(
+        public abstract IEnumerable<TextureResult> LoadTexture2D(
             bool linear = false,
             uint layer = 0,
             uint faceSlice = 0,
@@ -199,61 +207,7 @@ namespace KtxUnity {
             bool mipChain = true
             )
         {
-            var webRequest = UnityWebRequest.Get(url);
-            var asyncOp = webRequest.SendWebRequest();
-            while (!asyncOp.isDone) {
-                await Task.Yield();
-            }
-
-            if(!string.IsNullOrEmpty(webRequest.error)) {
-#if DEBUG
-                Debug.LogErrorFormat("Error loading {0}: {1}",url,webRequest.error);
-#endif
-                return new TextureResult(ErrorCode.OpenUriFailed);
-            }
-
-            var buffer = webRequest.downloadHandler.data;
-            
-            using (var bufferWrapped = new ManagedNativeArray(buffer)) {
-                return await LoadFromBytes(
-                    bufferWrapped.nativeArray,
-                    linear,
-                    layer,
-                    faceSlice,
-                    mipLevel,
-                    mipChain
-                    );
-            }
-        }
-        
-        /// <summary>
-        /// Loads, transcodes and creates a <see cref="Texture2D"/> from a
-        /// texture in memory.
-        /// Obsolete. Use <see cref="LoadFromBytes"/> instead.
-        /// </summary>
-        /// <param name="data">Input texture data</param>
-        /// <param name="linear">Depicts if texture is sampled in linear or
-        /// sRGB gamma color space.</param>
-        /// <param name="layer">Texture array layer to import</param>
-        /// <param name="faceSlice">Cubemap face or 3D/volume texture slice to import.</param>
-        /// <param name="mipLevel">Lowest mipmap level to import (where 0 is
-        /// the highest resolution). Lower mipmap levels (of higher resolution)
-        /// are being discarded. Useful to limit texture resolution.</param>
-        /// <param name="mipChain">If true, a mipmap chain (if present) is imported.</param>
-        /// <returns>A <see cref="TextureResult"/> that contains an
-        /// <see cref="ErrorCode"/>, the resulting texture and its orientation.
-        /// </returns>
-        [System.Obsolete("Use LoadFromBytes instead.")]
-        public async Task<TextureResult> LoadBytesRoutine(
-            NativeSlice<byte> data, 
-            bool linear = false,
-            uint layer = 0,
-            uint faceSlice = 0,
-            uint mipLevel = 0,
-            bool mipChain = true
-            )
-        {
-            return await LoadFromBytes(data,linear,layer,faceSlice,mipLevel,mipChain);
+            throw new NotImplementedException();
         }
 
         protected virtual TranscodeFormatTuple? GetFormat( IMetaData meta, ILevelInfo li, bool linear = false ) {

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -49,7 +50,7 @@ namespace KtxUnity {
         public TextureOrientation orientation => m_Ktx.orientation;
         
         /// <inheritdoc />
-        public override async Task<TextureResult> LoadTexture2D(
+        public override IEnumerable<TextureResult> LoadTexture2D(
             bool linear = false,
             uint layer = 0,
             uint faceSlice = 0,
@@ -62,8 +63,14 @@ namespace KtxUnity {
 
             if(m_Ktx.valid) {
                 if(m_Ktx.ktxClass==KtxClassId.ktxTexture2_c) {
-                    if(m_Ktx.needsTranscoding) {
-                        result.errorCode = await TranscodeInternal(m_Ktx,linear,layer,faceSlice,mipLevel);
+                    if(m_Ktx.needsTranscoding)
+                    {
+                        var task = TranscodeInternal(m_Ktx, linear, layer, faceSlice, mipLevel);
+                        while (!task.IsCompleted)
+                        {
+                            yield return null;
+                        }
+                        result.errorCode = task.Result;
                         result.orientation = m_Ktx.orientation;
                     }
                     else {
@@ -85,7 +92,8 @@ namespace KtxUnity {
             }
 
             if (result.errorCode != ErrorCode.Success) {
-                return result;
+                yield return result;
+                yield break;
             }
         
             Assert.IsTrue(m_Ktx.valid);
@@ -103,15 +111,17 @@ namespace KtxUnity {
                 bool success;
                 while (!m_Ktx.TryCreateTexture(out texture, out success, m_Format)) {
                     Profiler.EndSample();
-                    await Task.Yield();
+                    yield return null;
                 }
                 
                 if (success) {
-                    return new TextureResult {
+                    yield return new TextureResult {
                         texture = texture
                     };
+                    yield break;
                 }
-                return new TextureResult(ErrorCode.LoadingFailed);
+                yield return new TextureResult(ErrorCode.LoadingFailed);
+                yield break;
             }
 #endif
 
@@ -130,7 +140,7 @@ namespace KtxUnity {
             }
             
             Profiler.EndSample();
-            return result;
+            yield return result;
         }
         
         /// <inheritdoc />

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -32,7 +33,7 @@ namespace KtxUnity {
             return ErrorCode.Success;
         }
 
-        public override async Task<TextureResult> LoadTexture2D(
+        public override IEnumerable<TextureResult> LoadTexture2D(
             bool linear = false,
             uint layer = 0,
             uint faceSlice = 0,
@@ -42,21 +43,28 @@ namespace KtxUnity {
         {
             var transcoder = BasisUniversal.GetTranscoderInstance();
 
-            while(transcoder==null) {
-                await Task.Yield();
+            while(transcoder==null)
+            {
+                yield return null;
                 transcoder = BasisUniversal.GetTranscoderInstance();
             }
 
             var result = new TextureResult();
 
-            if(transcoder.Open(m_InputData)) {
-                result.errorCode = await Transcode(
+            if(transcoder.Open(m_InputData))
+            {
+                var task = Transcode(
                     transcoder,
                     linear,
                     layer,
                     mipLevel,
                     mipChain
-                    );
+                );
+                while (!task.IsCompleted)
+                {
+                    yield return null;
+                }
+                result.errorCode = task.Result;
                 m_Orientation = TextureOrientation.KTX_DEFAULT;
                 if(!transcoder.GetYFlip()) {
                     // Regular basis files (no y_flip) seem to be 
@@ -66,7 +74,8 @@ namespace KtxUnity {
             } else {
                 BasisUniversal.ReturnTranscoderInstance(transcoder);
                 result.errorCode = ErrorCode.LoadingFailed;
-                return result;
+                yield return result;
+                yield break;
             }
 
             Profiler.BeginSample("LoadBytesRoutineGpuUpload");
@@ -89,7 +98,7 @@ namespace KtxUnity {
             result.texture.Apply(false,true);
             m_TextureData.Dispose();
             Profiler.EndSample();
-            return result;
+            yield return result;
         }
 
         public override void Dispose() {}
