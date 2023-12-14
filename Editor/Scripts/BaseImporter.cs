@@ -64,37 +64,7 @@ namespace KtxUnity
         
         public override void OnImportAsset(AssetImportContext ctx)
         {
-            Profiler.BeginSample("Import Texture");
-            var texture = CreateTextureBase();
-            Profiler.BeginSample("Load Texture");
-            var result = AsyncHelpers.RunSync(() =>
-            {
-                using (var alloc = new ManagedNativeArray(File.ReadAllBytes(assetPath))) {
-                    return texture.LoadFromBytes(
-                        alloc.nativeArray,
-                        linear,
-                        layer,
-                        faceSlice,
-                        levelLowerLimit,
-                        importLevelChain
-                        );
-                }
-            });
-            Profiler.EndSample();
-
-            if (result.errorCode == ErrorCode.Success) {
-                result.texture.name = name;
-                result.texture.alphaIsTransparency = true;
-                ctx.AddObjectToAsset("result", result.texture);
-                ctx.SetMainObject(result.texture);
-                reportItems = new string[] { };
-            } else {
-                var errorMessage = ErrorMessage.GetErrorMessage(result.errorCode);
-                reportItems = new[] { errorMessage };
-                Debug.LogError($"Could not load texture file at {assetPath}: {errorMessage}",this);
-            }
-            
-            Profiler.EndSample();
+            throw new NotImplementedException();
         }
         
         protected abstract TextureBase CreateTextureBase();
